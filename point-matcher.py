@@ -71,7 +71,7 @@ def processInput():
       if i % 100 == 0:
         print "finished %d of %d points" % (i, len(point_input))
       
-      if i > 100:
+      if i > 10:
         break
 
       if (options.radius):
@@ -90,7 +90,7 @@ def processInput():
     for key, feature in featureIndex.items():
       properties = { your_key: feature['properties'][your_key] for your_key in feature['properties'].keys() if your_key in newSchema.keys() }
       collectors.outputMatchesToDict(key, properties)
-      if len(properties.keys()) == len(newSchema.keys()):
+      if len(properties.keys()) == len(newSchema['properties'].keys()):
         output.write({
           'properties': properties,
           'geometry': mapping(shape(feature['geometry']))
