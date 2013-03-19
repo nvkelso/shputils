@@ -20,6 +20,8 @@ parser.add_option('--o',  '--output', dest='output',
                   help='output filename', metavar='FILE')
 parser.add_option('--poly-fields', dest='poly_fields',
                   help='comma separated list of fields to copy from polygon feature')
+parser.add_option('--distance-collector', dest='distance_collector',
+                  help='save distance from point to poly', metavar='op:outputKey')
 parser.add_option('-c', '--collector', dest='collectors', action="append", default=[],
   metavar='inputKey:op:outputKey',
   help='arbitrarily collect fields from point input. op is one of %s' % (','.join(groupByOperations.keys())))
@@ -44,6 +46,11 @@ if not options.output:
 def processInput():
   index = rtree.index.Index()
   featureIndex = {}
+  distanceCollector = None
+  if options.distance_collector:
+    op = options.distance_collector.split(":")[0]
+    outputField = options.distance_collector.split(":")[1]
+    distanceCollector = DistanceCollector(op, outputField)
 
   with collection(options.poly_input, 'r') as poly_input:
     originalSchema = poly_input.schema.copy()
@@ -53,6 +60,8 @@ def processInput():
     inputCRS = poly_input.crs
     collectors = Collectors(poly_input, options.collectors)
     collectors.addToFionaSchema(newSchema)
+    if distanceCollector:
+      newSchema['properties'][distanceCollector.outputField] = distanceCollector.outputType 
     print "new schema\n%s" % newSchema
   
     print "loading %d polygons into rtree" % len(poly_input)
@@ -80,6 +89,8 @@ def processInput():
         polyFeature = featureIndex[polyIndex]
         if shape(polyFeature['geometry']).intersects(testShape):
           collectors.recordMatch(polyIndex, pointFeature)
+          if distanceCollector:
+            distanceCollector.recordMatch(polyIndex, pointFeature, polyFeature)
 
   with collection(
       options.output, 'w', 'ESRI Shapefile', newSchema, crs=inputCRS) as output:
@@ -88,6 +99,8 @@ def processInput():
       properties = { your_key: feature['properties'][your_key] for your_key in feature['properties'].keys() if your_key in newSchema['properties'].keys() }
       collectors.outputMatchesToDict(key, properties)
       properties = { k: v for k,v in properties.items() if v }
+      if distanceCollector:
+        properties[distanceCollector.outputKey] = distanceCollector.getOutput(key)
       if len(properties.keys()) == len(newSchema['properties'].keys()):
         output.write({
           'properties': properties,

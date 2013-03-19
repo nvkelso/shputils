@@ -15,6 +15,7 @@ groupByOperations = {
   'min': (lambda x: min(x), 'float'),
   'max': (lambda x: max(x), 'float'),
   'count': (lambda x: len(x), 'float'),
+  'avg': (lambda l: reduce(lambda x, y: x + y, l)/(len(l)*1.0), 'float'),
   'join': (lambda x: ','.join(x), 'str'),
   'first': (lambda x: x[0],),
   'last': (lambda x: x[-1],),
@@ -58,6 +59,24 @@ class Collectors:
   def addToFionaSchema(self, schema):
     for c in self.collectors:
       schema['properties'][c.outputField] = c.outputType 
+
+class DistanceCollector:
+  def __init__(self, op, outputField):
+    self.op = op
+    self.outputField = outputField
+    self.outputType = groupByOperations[self.op][1]
+    self.matches = defaultdict(list)
+
+  def recordMatch(self, groupKey, f1, f2):
+    s1 = shape(f1['geometry'])
+    s2 = shape(f2['geometry'])
+    self.matches[groupKey].append(s1.distance(s2))
+
+  def getOutput(self, groupKey):
+    if self.matches[groupKey]:
+      return getGroupByOp(self.op)(self.matches[groupKey])
+    else:
+      return None
 
 class Collector:
   def __init__(self, collection, inputStr):
