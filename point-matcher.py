@@ -71,9 +71,6 @@ def processInput():
       if i % 100 == 0:
         print "finished %d of %d points" % (i, len(point_input))
       
-      if i > 10:
-        break
-
       if (options.radius):
         radiusDegrees = options.radius / 111131.745
         testShape = testShape.buffer(radiusDegrees, 30)
