@@ -59,6 +59,7 @@ def processInput():
   geometryBuckets = defaultdict(list)
   propBuckets = defaultdict(lambda : defaultdict(list))
   collectorOutputOps = {}
+  inputCRS = None
 
   with collection(options.input, 'r') as input:
     originalSchema = input.schema.copy()
@@ -66,6 +67,7 @@ def processInput():
     print '  %s' % originalSchema
     newSchema = {}
     newSchema['geometry'] = 'MultiPolygon' 
+    inputCRS = input.crs
 
     def getActualProperty(propName):
       actualField = [sf for sf in originalSchema['properties'].keys() if propName.strip().upper() == sf.upper()]
@@ -124,7 +126,7 @@ def processInput():
   print 'saw %d features, made %d dissolved features' % (featuresSeen, len(geometryBuckets))
 
   with collection(
-      options.output, 'w', 'ESRI Shapefile', newSchema) as output:
+      options.output, 'w', 'ESRI Shapefile', newSchema, crs=inputCRS) as output:
     for key, value in geometryBuckets.items():
       merged = cascaded_union(value)
       properties = json.loads(key)
