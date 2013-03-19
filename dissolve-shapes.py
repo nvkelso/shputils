@@ -9,19 +9,7 @@ from fiona import collection
 import json
 import sys
 from optparse import OptionParser
-
-groupByOperations = {
-  'sum': (lambda x: sum(x), 'float'),
-  'min': (lambda x: min(x), 'float'),
-  'max': (lambda x: max(x), 'float'),
-  'count': (lambda x: len(x), 'float'),
-  'join': (lambda x: ','.join(x), 'str'),
-  'first': (lambda x: x[0],),
-  'last': (lambda x: x[-1],),
-}
-def getGroupByOp(op):
-  o = groupByOperations[op]
-  return o[0]
+from merge_utils import *
 
 parser = OptionParser()
 parser.add_option('-i', '--input', dest='input',
@@ -37,7 +25,6 @@ parser.add_option('-c', '--collectors', dest='collectors', action="append", defa
 (options, args) = parser.parse_args()
 
 matchingFields = []
-collectorFields = {}
 
 # we build the key as the string representation of the json representation of the
 # dict of keys that we grouped by (and intend to save) dictionaries aren't hashable,
@@ -55,53 +42,19 @@ def buildKeyFromFeature(feature):
 
 def processInput():
   global matchingFields
-  collectorFields = defaultdict(list)
-  geometryBuckets = defaultdict(list)
-  propBuckets = defaultdict(lambda : defaultdict(list))
-  collectorOutputOps = {}
+  geometryBuckets = defaultdict(list) 
   inputCRS = None
 
   with collection(options.input, 'r') as input:
+    matchingFields = [getActualProperty(input, f) for f in options.fields.split(',')]
     originalSchema = input.schema.copy()
     print "original schema"
     print '  %s' % originalSchema
-    newSchema = {}
+    newSchema = filterFionaSchema(input, options.fields.split(','))
     newSchema['geometry'] = 'MultiPolygon' 
     inputCRS = input.crs
-
-    def getActualProperty(propName):
-      actualField = [sf for sf in originalSchema['properties'].keys() if propName.strip().upper() == sf.upper()]
-      if not actualField:
-        print 'field %s not found in shapefile. possible values: %s' % (f, ','.join(schema['properties'].keys()))
-        sys.exit(1)
-      else:
-        return str(actualField[0])
-
-    matchingFields = [getActualProperty(f) for f in options.fields.split(',')]
-    newSchema['properties'] = dict((key,value) for key, value in originalSchema['properties'].iteritems() if key in matchingFields)
-
-    for c in options.collectors:
-      parts = c.split(':')
-      field = parts[0]
-      op = parts[1]
-      outField = field
-      if len(parts) >= 2:
-        outField = parts[2]
-
-      if op not in groupByOperations.keys():
-        print "op %s not found in groupByOperations: %s" % (op, ','.join(groupByOperations.keys()))
-      if outField.upper() in [m.upper() for m in matchingFields]:
-        print "cannot have field in both group by and collect: %s" % outField
-        sys.exit(1)
-      # oh god this should be a class not a tuple
-      collectorFields[getActualProperty(field)].append(outField)
-      collectorOutputOps[outField] = op
-      print outField
-      if len(groupByOperations[op]) == 2:
-        newSchema['properties'][outField] = groupByOperations[op][1]
-      else:
-        newSchema['properties'][outField] = originalSchema['properties'][getActualProperty(field)]
-      print 'collecting %s into %s with operator %s' % (getActualProperty(field), outField, op)
+    collectors = Collectors(input, options.collectors)
+    collectors.addToFionaSchema(newSchema)
     print 'grouping by: %s' % matchingFields
 
   print "modified schema:"
@@ -118,10 +71,9 @@ def processInput():
     if f is None: break
     g = f.geometry()
     if g is not None:
-      for inputKey,outputKeys in collectorFields.iteritems():
-        for outputKey in outputKeys:
-          propBuckets[buildKeyFromFeature(f)][outputKey].append(f.GetField(inputKey))
-      geometryBuckets[buildKeyFromFeature(f)].append(loads(g.ExportToWkb()))
+      groupKey = buildKeyFromFeature(f)
+      collectors.recordMatch(groupKey, f)
+      geometryBuckets[groupKey].append(loads(g.ExportToWkb()))
 
   print 'saw %d features, made %d dissolved features' % (featuresSeen, len(geometryBuckets))
 
@@ -130,10 +82,7 @@ def processInput():
     for key, value in geometryBuckets.items():
       merged = cascaded_union(value)
       properties = json.loads(key)
-      groupByPropMap = propBuckets[key]
-      for f,values in groupByPropMap.iteritems():
-        properties[f] = getGroupByOp(collectorOutputOps[f])(values)
-
+      collectors.outputMatchesToDict(key, properties)
       output.write({
         'properties': properties,
         'geometry': mapping(merged)
