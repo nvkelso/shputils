@@ -10,7 +10,14 @@ import json
 import sys
 from optparse import OptionParser
 
-parser = OptionParser()
+parser = OptionParser(usage="""%prog [options]
+
+DISSOLVE SHAPES
+
+Takes an Esri Shapefile and dissolves (unions) geometries sharing the same values in 
+user-specified fields. Mutlipart polygons are built from the matching features. Useful
+for rebuilding exploided polygons or dissolving children into a parent shape.""")
+
 parser.add_option('-i', '--input', dest='input',
                   help='shapefile to read', metavar='FILE')
 parser.add_option('-o', '--output', dest='output',
