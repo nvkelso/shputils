@@ -8,7 +8,7 @@ from shapely.ops import cascaded_union
 import json
 import sys
 from optparse import OptionParser
-from rtree import Rtree
+import rtree
 from merge_utils import *
 
 parser = OptionParser()
@@ -42,7 +42,7 @@ if not options.output:
   missing_opt("output")
 
 def processInput():
-  index = Rtree('/tmp/polyRtree')
+  index = rtree.index.Index()
   featureIndex = {}
 
   with collection(options.poly_input, 'r') as poly_input:
@@ -88,6 +88,7 @@ def processInput():
       properties = { your_key: feature['properties'][your_key] for your_key in feature['properties'].keys() if your_key in newSchema.keys() }
       collectors.outputMatchesToDict(key, properties)
       if len(properties.keys()) == len(newSchema['properties'].keys()):
+        print "had matches for: %s" % key
         output.write({
           'properties': properties,
           'geometry': mapping(shape(feature['geometry']))
