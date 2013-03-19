@@ -100,7 +100,7 @@ def processInput():
       collectors.outputMatchesToDict(key, properties)
       properties = { k: v for k,v in properties.items() if v }
       if distanceCollector:
-        properties[distanceCollector.outputKey] = distanceCollector.getOutput(key)
+        properties[distanceCollector.outputField] = distanceCollector.getOutput(key)
       if len(properties.keys()) == len(newSchema['properties'].keys()):
         output.write({
           'properties': properties,
