@@ -85,10 +85,10 @@ def processInput():
       options.output, 'w', 'ESRI Shapefile', newSchema, crs=inputCRS) as output:
    
     for key, feature in featureIndex.items():
-      properties = { your_key: feature['properties'][your_key] for your_key in feature['properties'].keys() if your_key in newSchema.keys() }
+      properties = { your_key: feature['properties'][your_key] for your_key in feature['properties'].keys() if your_key in newSchema['properties'].keys() }
       collectors.outputMatchesToDict(key, properties)
+      properties = { k: v for k,v in properties.items() if v }
       if len(properties.keys()) == len(newSchema['properties'].keys()):
-        print "had matches for: %s" % key
         output.write({
           'properties': properties,
           'geometry': mapping(shape(feature['geometry']))
