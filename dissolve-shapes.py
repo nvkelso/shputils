@@ -80,19 +80,33 @@ def processInput():
   print '  %s' % newSchema
 
   ds = ogr.Open(options.input)
-  inputShape = ds.GetLayer(0)
-  print 'examining %s, with %d features' % (options.input, inputShape.GetFeatureCount())
+  layer = ds.GetLayer(0)
+  print 'examining %s, with %d features' % (options.input, layer.GetFeatureCount())
   featuresSeen = 0
+
+  def printFeature(f):
+    featureDefinition = layer.GetLayerDefn()
+    fieldIndices = xrange(featureDefinition.GetFieldCount())
+    for fieldIndex in fieldIndices:
+      fieldDefinition = featureDefinition.GetFieldDefn(fieldIndex)
+      print "\t%s:%s = %s" % (
+        fieldDefinition.GetName(), fieldDefinition.GetType(), f.GetField(fieldIndex))
+
   # using raw shapely here because fiona barfs on invalid geoms in the shapefile
   while True:
-    f = inputShape.GetNextFeature()
+    f = layer.GetNextFeature()
     if f is None: break
     g = f.geometry()
     featuresSeen += 1
     if g is not None:
-      groupKey = buildKeyFromFeature(f)
-      collectors.recordMatch(groupKey, f)
-      geometryBuckets[groupKey].append(loads(g.ExportToWkb()))
+      if not loads(g.ExportToWkb()).is_valid:
+        print 'SKIPPING invalid geometry for:'
+        printFeature(f)
+        print g
+      else:
+        groupKey = buildKeyFromFeature(f)
+        collectors.recordMatch(groupKey, f)
+        geometryBuckets[groupKey].append(loads(g.ExportToWkb()))
 
   print 'saw %d features, made %d dissolved features' % (featuresSeen, len(geometryBuckets))
 
