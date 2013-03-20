@@ -60,16 +60,33 @@ def processInput():
   geometryBuckets = defaultdict(list) 
   inputCRS = None
 
+  ds = ogr.Open(options.input)
+  layer = ds.GetLayer(0)
+  featureDefinition = layer.GetLayerDefn()
+
   with collection(options.input, 'r') as input:
     if not options.fields and not options.all:
       print "no matching fields specified, and --all not specified, please specify some with -f"
       sys.exit(1)
     if options.fields:
-      matchingFields = [getActualProperty(input, f) for f in options.fields.split(',')]
-    originalSchema = input.schema.copy()
+      matchingFields = [getActualProperty(layer, f) for f in options.fields.split(',')]
+    # originalSchema = input.schema.copy()
+
+    # awful hack to get a fiona-like schema from ogr
+    originalSchema = {}
+    def getTypeName(fieldDef):
+      if fieldDef.GetType() == ogr.OFTInteger:
+        return 'int'
+      if fieldDef.GetType() == ogr.OFTString:
+        return 'str'
+      if fieldDef.GetType() == ogr.OFTReal:
+        return 'float'
+
+    originalSchema['properties'] = {featureDefinition.GetFieldDefn(i).GetName():getTypeName(featureDefinition.GetFieldDefn(i)) for i in xrange(featureDefinition.GetFieldCount())}
+
     print "original schema"
     print '  %s' % originalSchema
-    newSchema = filterFionaSchema(input, matchingFields)
+    newSchema = filterSchemaDict(originalSchema, matchingFields)
     newSchema['geometry'] = 'MultiPolygon' 
     inputCRS = input.crs
     collectors = Collectors(input, options.collectors)
@@ -79,13 +96,10 @@ def processInput():
   print "modified schema:"
   print '  %s' % newSchema
 
-  ds = ogr.Open(options.input)
-  layer = ds.GetLayer(0)
   print 'examining %s, with %d features' % (options.input, layer.GetFeatureCount())
   featuresSeen = 0
 
   def printFeature(f):
-    featureDefinition = layer.GetLayerDefn()
     fieldIndices = xrange(featureDefinition.GetFieldCount())
     for fieldIndex in fieldIndices:
       fieldDefinition = featureDefinition.GetFieldDefn(fieldIndex)

@@ -57,7 +57,7 @@ def processInput():
     originalSchema = poly_input.schema.copy()
     print "original schema"
     print '  %s' % originalSchema
-    newSchema = filterFionaSchema(poly_input, options.poly_fields.split(','))
+    newSchema = filterSchemaDict(originalSchema, options.poly_fields.split(','))
     inputCRS = poly_input.crs
     collectors = Collectors(poly_input, options.collectors)
     collectors.addToFionaSchema(newSchema)

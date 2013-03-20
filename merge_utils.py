@@ -14,7 +14,7 @@ groupByOperations = {
   'sum': (lambda x: sum(x), 'float'),
   'min': (lambda x: min(x), 'float'),
   'max': (lambda x: max(x), 'float'),
-  'count': (lambda x: len(x), 'float'),
+  'count': (lambda x: len(x), 'int'),
   'avg': (lambda l: reduce(lambda x, y: x + y, l)/(len(l)*1.0), 'float'),
   'join': (lambda x: ','.join(x), 'str'),
   'first': (lambda x: x[0],),
@@ -24,19 +24,31 @@ def getGroupByOp(op):
   o = groupByOperations[op]
   return o[0]
 
-def getActualProperty(collection, propName):
-  originalSchema = collection.schema
-  actualField = [sf for sf in originalSchema['properties'].keys() if propName.strip().upper() == sf.upper()]
+def getActualPropertyFromSchemaDict(schema, propName):
+  actualField = [sf for sf in schema['properties'].keys() if propName.strip().upper() == sf.upper()]
   if not actualField:
-    print 'field %s not found in shapefile. possible values: %s' % (propName, ','.join(originalSchema['properties'].keys()))
+    print 'field %s not found in shapefile. possible values: %s' % (propName, ','.join(schema['properties'].keys()))
     sys.exit(1)
   else:
     return str(actualField[0])
 
-def filterFionaSchema(collection, keys):
-  newSchema = collection.schema.copy()
-  matchingFields = [getActualProperty(collection, f) for f in keys]
-  newSchema['properties'] = dict((key,value) for key, value in collection.schema['properties'].iteritems() if key in matchingFields)
+def getActualProperty(collection, propName):
+  # assume shapely
+  if hasattr(collection, 'GetLayerDefn'):
+    featureDefinition = collection.GetLayerDefn()
+    actualField = [featureDefinition.GetFieldDefn(i).GetName() for i in xrange(featureDefinition.GetFieldCount()) if propName.strip().upper() == featureDefinition.GetFieldDefn(i).GetName().upper()]
+    if not actualField:
+      print 'field %s not found in shapefile. possible values: %s' % (propName, ','.join(
+        [featureDefinition.GetFieldDefn(i).GetName() for i in xrange(featureDefinition.GetFieldCount())]))
+      sys.exit(1)
+    else:
+      return str(actualField[0])
+  else:
+    return getActualFieldFromSchemaDict(collection.schema, propName)
+ 
+def filterSchemaDict(newSchema, keys):
+  matchingFields = [getActualPropertyFromSchemaDict(newSchema, f) for f in keys]
+  newSchema['properties'] = dict((key,value) for key, value in newSchema['properties'].iteritems() if key in matchingFields)
   return newSchema
 
 class Collectors:
