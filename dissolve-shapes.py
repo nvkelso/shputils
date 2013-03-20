@@ -99,14 +99,15 @@ def processInput():
     g = f.geometry()
     featuresSeen += 1
     if g is not None:
-      if not loads(g.ExportToWkb()).is_valid:
+      geom = loads(g.ExportToWkb()).buffer(0)
+      if not geom.is_valid:
         print 'SKIPPING invalid geometry for:'
         printFeature(f)
         print g
       else:
         groupKey = buildKeyFromFeature(f)
         collectors.recordMatch(groupKey, f)
-        geometryBuckets[groupKey].append(loads(g.ExportToWkb()))
+        geometryBuckets[groupKey].append(geom)
 
   print 'saw %d features, made %d dissolved features' % (featuresSeen, len(geometryBuckets))
 
