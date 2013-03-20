@@ -13,6 +13,8 @@ from optparse import OptionParser
 from merge_utils import *
 
 parser = OptionParser()
+parser.add_option('-a', '--all', dest='all', action="store_true", default=False,
+                  help='dissolve all shapes into one')
 parser.add_option('-i', '--input', dest='input',
                   help='shapefile to read', metavar='FILE')
 parser.add_option('-o', '--output', dest='output',
@@ -35,14 +37,15 @@ def checkArg(opt, message):
 
 checkArg(options.input, 'input')
 checkArg(options.output, 'output')
-checkArg(options.fields, 'matching fields')
-
 
 # we build the key as the string representation of the json representation of the
 # dict of keys that we grouped by (and intend to save) dictionaries aren't hashable,
 # and this was an easy way to keep the full dict next to the geometries
 def buildKeyFromFeature(feature):
   values = {}
+  if options.all:
+    return '{}'
+
   for field in matchingFields:
     value = feature.GetField(field)
     if not value:
@@ -58,14 +61,15 @@ def processInput():
   inputCRS = None
 
   with collection(options.input, 'r') as input:
-    if not options.fields:
-      print "no matching fields specified, please specify some with -f"
+    if not options.fields and not options.all:
+      print "no matching fields specified, and --all not specified, please specify some with -f"
       sys.exit(1)
-    matchingFields = [getActualProperty(input, f) for f in options.fields.split(',')]
+    if options.fields:
+      matchingFields = [getActualProperty(input, f) for f in options.fields.split(',')]
     originalSchema = input.schema.copy()
     print "original schema"
     print '  %s' % originalSchema
-    newSchema = filterFionaSchema(input, options.fields.split(','))
+    newSchema = filterFionaSchema(input, matchingFields)
     newSchema['geometry'] = 'MultiPolygon' 
     inputCRS = input.crs
     collectors = Collectors(input, options.collectors)
@@ -81,10 +85,10 @@ def processInput():
   featuresSeen = 0
   # using raw shapely here because fiona barfs on invalid geoms in the shapefile
   while True:
-    featuresSeen += 1
     f = inputShape.GetNextFeature()
     if f is None: break
     g = f.geometry()
+    featuresSeen += 1
     if g is not None:
       groupKey = buildKeyFromFeature(f)
       collectors.recordMatch(groupKey, f)
