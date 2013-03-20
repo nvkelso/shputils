@@ -6,6 +6,7 @@ from collections import defaultdict
 from shapely.geometry import mapping, shape
 from shapely.ops import cascaded_union
 from fiona import collection
+import shapely.speedups
 import json
 import sys
 from optparse import OptionParser
@@ -25,6 +26,17 @@ parser.add_option('-c', '--collectors', dest='collectors', action="append", defa
 (options, args) = parser.parse_args()
 
 matchingFields = []
+
+def checkArg(opt, message):
+  if not opt:
+    print "Missing %s" % message
+    parser.print_usage()
+    sys.exit(1)
+
+checkArg(options.input, 'input')
+checkArg(options.output, 'output')
+checkArg(options.fields, 'matching fields')
+
 
 # we build the key as the string representation of the json representation of the
 # dict of keys that we grouped by (and intend to save) dictionaries aren't hashable,
@@ -46,6 +58,9 @@ def processInput():
   inputCRS = None
 
   with collection(options.input, 'r') as input:
+    if not options.fields:
+      print "no matching fields specified, please specify some with -f"
+      sys.exit(1)
     matchingFields = [getActualProperty(input, f) for f in options.fields.split(',')]
     originalSchema = input.schema.copy()
     print "original schema"

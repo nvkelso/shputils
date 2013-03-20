@@ -5,6 +5,7 @@ from shapely.wkb import loads
 from collections import defaultdict
 from shapely.geometry import mapping, shape
 from shapely.ops import cascaded_union
+import shapely.speedups
 import json
 import sys
 from optparse import OptionParser

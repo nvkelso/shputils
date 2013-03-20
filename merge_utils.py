@@ -28,7 +28,7 @@ def getActualProperty(collection, propName):
   originalSchema = collection.schema
   actualField = [sf for sf in originalSchema['properties'].keys() if propName.strip().upper() == sf.upper()]
   if not actualField:
-    print 'field %s not found in shapefile. possible values: %s' % (f, ','.join(schema['properties'].keys()))
+    print 'field %s not found in shapefile. possible values: %s' % (propName, ','.join(originalSchema['properties'].keys()))
     sys.exit(1)
   else:
     return str(actualField[0])
