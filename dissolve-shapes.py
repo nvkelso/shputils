@@ -82,7 +82,7 @@ def processInput():
       if fieldDef.GetType() == ogr.OFTReal:
         return 'float'
 
-    originalSchema['properties'] = {featureDefinition.GetFieldDefn(i).GetName():getTypeName(featureDefinition.GetFieldDefn(i)) for i in xrange(featureDefinition.GetFieldCount())}
+    originalSchema['properties'] = dict([(featureDefinition.GetFieldDefn(i).GetName(), getTypeName(featureDefinition.GetFieldDefn(i))) for i in xrange(featureDefinition.GetFieldCount())])
 
     print "original schema"
     print '  %s' % originalSchema
