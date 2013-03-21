@@ -44,11 +44,11 @@ def getActualProperty(collection, propName):
     else:
       return str(actualField[0])
   else:
-    return getActualFieldFromSchemaDict(collection.schema, propName)
+    return getActualPropertyFromSchemaDict(collection.schema, propName)
  
 def filterSchemaDict(newSchema, keys):
-  matchingFields = [getActualPropertyFromSchemaDict(newSchema, f) for f in keys]
-  newSchema['properties'] = dict((key,value) for key, value in newSchema['properties'].iteritems() if key in matchingFields)
+  matchingFields = [getActualPropertyFromSchemaDict(newSchema, f.upper()) for f in keys]
+  newSchema['properties'] = dict((key,value) for key, value in newSchema['properties'].iteritems() if str(key).upper() in matchingFields)
   return newSchema
 
 class Collectors:
@@ -96,7 +96,7 @@ class Collector:
     self.inputField = getActualProperty(collection, parts[0])
     self.op = parts[1]
     self.outputField = self.inputField
-    if len(parts) >= 2:
+    if len(parts) >= 3:
       self.outputField = parts[2]
 
     self.matches = defaultdict(list)
@@ -122,4 +122,3 @@ class Collector:
       return getGroupByOp(self.op)(self.matches[groupKey])
     else:
       return None
-
